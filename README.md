@@ -7,18 +7,23 @@ There will also be a JS implementation in the end.
 
 You can use the parser like this:
 
-```
+```php
 $parser = new IFMparser;
 echo $parser->text($input);
 ```
 
-The above example can parse both block and inline elements, change it to `echo $parser->line($input);` for parsing inline elements only.
+The above example can parse both block and inline elements, you can also use the parser for only inline elements:
+
+```php
+$parser = new IFMparser;
+echo $parser->line($input);
+```
 
 Please see the [Wiki page](https://github.com/Intranet-Development-Team/intranet-markup-parser/wiki) for more examples on the syntax of Intranet Markup and the usage of IMP.
 
 
 ## Security
 
-IMP will automatically convert HTML into plain text by applying the `htmlspecialchars()` function. You can also define the whitelist of link by yourself using the `$parser->setAllowedLinks(...$links)` method.
+IMP will automatically convert HTML into plain text by applying the `htmlspecialchars()` function. You can also define the whitelist of link by yourself using the `setAllowedLinks()` method.
 
 
