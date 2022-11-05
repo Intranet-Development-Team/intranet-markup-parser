@@ -1,5 +1,5 @@
 <?php
-class IFMparser
+class IMP
 {
     ## Settings ##
     protected $autoURL = true,
@@ -150,22 +150,4 @@ class IFMparser
         return $str;
     }
 }
-
-if (isset($_POST["text"]))
-{
-
-    $start = hrtime(true);
-    $obj = new IFMparser;
-    $returned = $obj->text($_POST["text"]);
-    echo (hrtime(true) - $start) / 1000000;;
-}
 ?>
-<html>
-<form method="post">
-    <textarea name="text" style="height:10em;"><?= $_POST["text"] ?? "" ?></textarea>
-    <input type="submit">
-</form>
-<textarea style="height:10em;"><?= (isset($returned) ? htmlentities($returned) : "") ?></textarea>
-<div><?= $returned ?? "" ?></div>
-
-</html>

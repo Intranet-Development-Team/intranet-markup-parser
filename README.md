@@ -8,14 +8,14 @@ There will also be a JS implementation in the end.
 You can use the parser like this:
 
 ```php
-$parser = new IFMparser;
+$parser = new IMP;
 echo $parser->text($input);
 ```
 
 The above example can parse both block and inline elements, you can also use the parser for only inline elements:
 
 ```php
-$parser = new IFMparser;
+$parser = new IMP;
 echo $parser->line($input);
 ```
 
