@@ -1,6 +1,36 @@
 <?php
-class IMLparser
+class IFMparser
 {
+    ## Settings ##
+    protected $autoURL = true,
+        $allowedLinks = [
+            'https?:\/\/',
+            'ftps?:\/\/',
+            'mailto:',
+            'tel:',
+            'data:image\/png;base64,',
+            'data:image\/gif;base64,',
+            'data:image\/jpeg;base64,',
+            'irc:',
+            'ircs:',
+            'git:',
+            'ssh:',
+            'news:',
+            'steam:',
+        ];
+
+    public function setAutoUrl(bool $auto): void
+    {
+        $this->autoURL = $auto;
+    }
+
+    public function setAllowedLinks(string ...$startwith): void
+    {
+        $this->allowedLinks = $startwith;
+    }
+
+    ## Parsers ##
+
     private function block(string $str): string
     {
         $lines = explode("\n", $str);
@@ -90,9 +120,8 @@ class IMLparser
         $str = preg_replace('/\^\{(?=[^}]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sup>$1</sup>", $str);
         $str = preg_replace('/\_\{(?=[^}]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sub>$1</sub>", $str);
         $str = preg_replace('/\`\`\`(?=[^`]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str);
-        $str = preg_replace('/\!\[(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\]\((https?:\/\/[^\)]+?)\)/', "<img src=\"$5\" alt=\"$1\">", $str);
-        $str = preg_replace('/\[(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\]\((https?:\/\/[^\)]+?)\)/', "<a target=\"_blank\" href=\"$5\">$1</a>", $str);
-        $str = preg_replace('/(?<!\]\()(?>https?:\/\/[^\s]+)(?!\]\()/',"<a target=\"_blank\" href=\"$0\">$0</a>",$str);
+        $str = preg_replace('/(?<!\!)\[(?!\[)(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)(?<!\])\]\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<a target=\"_blank\" href=\"$5\">$1</a>", $str);
+        $str = preg_replace('/\!\[\[(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\]\]\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<img src=\"$5\" alt=\"$1\">", $str);
         return $str;
     }
 
@@ -100,6 +129,10 @@ class IMLparser
     {
         $str = htmlspecialchars($str, ENT_QUOTES);
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "\n", $str); // Unify line breaks indicators and remove excess breaks
+        if ($this->autoURL)
+        {
+            $str = preg_replace('/(?<!\]\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str);
+        }
         $str = $this->block($str);
         $str = $this->inline($str);
         $str = preg_replace("/\n/", "", $str);
@@ -109,6 +142,10 @@ class IMLparser
     public function line(string $str): string
     {
         $str = htmlspecialchars($str, ENT_QUOTES);
+        if ($this->autoURL)
+        {
+            $str = preg_replace('/(?<!\]\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str);
+        }
         $str = $this->inline($str);
         return $str;
     }
@@ -118,7 +155,7 @@ if (isset($_POST["text"]))
 {
 
     $start = hrtime(true);
-    $obj = new IMLparser;
+    $obj = new IFMparser;
     $returned = $obj->text($_POST["text"]);
     echo (hrtime(true) - $start) / 1000000;;
 }
@@ -128,7 +165,7 @@ if (isset($_POST["text"]))
     <textarea name="text" style="height:10em;"><?= $_POST["text"] ?? "" ?></textarea>
     <input type="submit">
 </form>
-<textarea style="height:10em;"><?= htmlentities($returned) ?? "" ?></textarea>
+<textarea style="height:10em;"><?= (isset($returned) ? htmlentities($returned) : "") ?></textarea>
 <div><?= $returned ?? "" ?></div>
 
 </html>
