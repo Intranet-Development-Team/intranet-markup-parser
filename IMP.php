@@ -34,7 +34,7 @@ class IMP
     private function block(string $str): string
     {
         $lines = explode("\n", $str);
-        $openedLists = []; // array element properties: indent => [element => element]
+        $openedLists = []; // array element properties: indent => ["element" => tagname]
 
         foreach ($lines as &$line)
         {
@@ -142,6 +142,7 @@ class IMP
     public function line(string $str): string
     {
         $str = htmlspecialchars($str, ENT_QUOTES);
+        $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str);
         if ($this->autoURL)
         {
             $str = preg_replace('/(?<!\]\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str);

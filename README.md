@@ -1,11 +1,9 @@
 # Intranet Markup Parser
 This Intranet Markup Parser parses human-readable IM code into HTML to be rendered in browser with PHP.
 
-There will also be a JS implementation in the end.
-
 ## Introduction
 
-You can use the parser like this:
+You can use the parser in PHP like this:
 
 ```php
 $parser = new IMP;
