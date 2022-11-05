@@ -19,7 +19,7 @@ $parser = new IMP;
 echo $parser->line($input);
 ```
 
-Please see the [Wiki page](https://github.com/Intranet-Development-Team/intranet-markup-parser/wiki) for more examples on the syntax of Intranet Markup and the usage of IMP.
+Please see the [Wiki page](https://github.com/Intranet-Development-Team/intranet-markup-parser/wiki) for the complete usage of IMP.
 
 
 ## Security
