@@ -25,5 +25,3 @@ Please see the [Wiki page](https://github.com/Intranet-Development-Team/intranet
 ## Security
 
 IMP will automatically convert HTML into plain text by applying the `htmlspecialchars()` function. You can also define the whitelist of link by yourself using the `setAllowedLinks()` method.
-
-
