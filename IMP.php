@@ -131,7 +131,7 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "\n", $str); // Unify line breaks indicators and remove excess breaks
         if ($this->autoURL)
         {
-            $str = preg_replace('/(?<!(?:\]|\&gt;)\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
+            $str = preg_replace('/(?<!\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\))/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
         }
         $str = $this->block($str);
         $str = $this->inline($str);
@@ -145,7 +145,7 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
         if ($this->autoURL)
         {
-            $str = preg_replace('/(?<!(?:\]|\&gt;)\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
+            $str = preg_replace('/(?<!\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\))/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
         }
         $str = $this->inline($str);
         return $str;
