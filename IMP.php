@@ -38,11 +38,11 @@ class IMP
 
         foreach ($lines as &$line)
         {
-            if (preg_match('/^( *)((?:\d+\.)|-) +.+$/', $line, $match)) // Ordered and unordered lists (nestable)
+            if (preg_match('/^( *)((?:\d+\.)|-|\*) +.+$/', $line, $match)) // Ordered and unordered lists (nestable)
             {
                 $indent = strlen($match[1]);
                 $lastkey = array_key_last($openedLists);
-                $element = ($match[2] === "-" ? 'ul' : 'ol');
+                $element = ($match[2] === "-" || $match[2] === "*" ? 'ul' : 'ol');
 
                 if (isset($openedLists[$indent]))
                 {
@@ -53,7 +53,7 @@ class IMP
                 {
                     if ($indent > $lastkey)
                     {
-                        $line = preg_replace('/ *((?:\d+\.)|-) +/', '<' . $element . '><li>', $line, 1);
+                        $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<' . $element . '><li>', $line, 1);
                         $openedLists[$indent] = ["element" => $element];
                     }
                     else
@@ -66,19 +66,19 @@ class IMP
                                 unset($openedLists[$lastkey]);
                             }
                         }
-                        $line = preg_replace('/ *((?:\d+\.)|-) +/', '<li>', $line, 1);
+                        $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<li>', $line, 1);
                     }
                 }
                 else if (!isset($openedLists[$indent]))
                 {
                     $openedLists = [];
                     $openedLists[$indent] = ["element" => $element];
-                    $line = preg_replace('/ *((?:\d+\.)|-) +/', '<' . $element . '><li>', $line, 1);
+                    $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<' . $element . '><li>', $line, 1);
                 }
 
                 if (isset($openedLists[$indent]))
                 {
-                    $line = preg_replace('/ *((?:\d+\.)|-) +/', '<li>', $line, 1);
+                    $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<li>', $line, 1);
                 }
             }
             else
@@ -95,21 +95,21 @@ class IMP
                 {
                     $line = '<h' . strlen($match[1]) . '>' . $match[2] . '</h' . strlen($match[1]) . '>';
                 }
-                else if (preg_match('/^ *&gt; *(.+?)?$/', $line, $match)) // Blockquote
+                else if (preg_match('/^ *&gt; *(.+?)$/', $line, $match)) // Blockquote
                 {
                     $line = '<blockquote>' . $match[1] . '</blockquote>';
                 }
-                else if (preg_match('/^ *(=|-|#)\1{4,} *?$/', $line, $match)) // Horizontal break
+                else if (preg_match('/^ *(=|-|#|)\1{4,} *?$/', $line, $match)) // Horizontal break
                 {
                     $line = '<hr>';
                 }
-                $line = preg_replace('/(?:^|\n)([^<>]+?)(?:$|\n)/', '<p>${1}</p>', $line); // Paragraph
+                $line = preg_replace('/(?:^|\n)([^<>]+?)(?:$|\n)/', "<p>$1</p>", $line); // Paragraph
             }
         }
         return implode("\n", $lines);
     }
 
-    private function inline(string $str): string
+    private function inline(string $str, bool $imglineheight = false): string
     {
         $str = preg_replace('/\*\*\*(?=[^*]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
         $str = preg_replace('/\*\*(?=[^*]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
@@ -120,8 +120,8 @@ class IMP
         $str = preg_replace('/\^\{(?=[^}]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/\_\{(?=[^}]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
         $str = preg_replace('/\`\`\`(?=[^`]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/\[(?!\[)(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)(?<!\])\]\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<a target=\"_blank\" href=\"$5\">$1</a>", $str); // Link
-        $str = preg_replace('/\&lt;(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\&gt;\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<img src=\"$5\" alt=\"$1\">", $str); // Image
+        $str = preg_replace('/\[(?!\[)(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)(?<!\])\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a target=\"_blank\" href=\"$5\">$1</a>", $str); // Link
+        $str = preg_replace('/\&lt;(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$5\" alt=\"$1\"" . ($imglineheight ? " style=\"max-height:1em;\"" : "") . ">", $str); // Image
         return $str;
     }
 
@@ -131,7 +131,7 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "\n", $str); // Unify line breaks indicators and remove excess breaks
         if ($this->autoURL)
         {
-            $str = preg_replace('/(?<!\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\))/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
+            $str = preg_replace('/(?<!\()(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s]+)(?!\))/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
         }
         $str = $this->block($str);
         $str = $this->inline($str);
@@ -145,10 +145,9 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
         if ($this->autoURL)
         {
-            $str = preg_replace('/(?<!\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\))/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
+            $str = preg_replace('/(?<!\()(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s]+)(?!\))/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
         }
-        $str = $this->inline($str);
+        $str = $this->inline($str, true);
         return $str;
     }
 }
-?>
