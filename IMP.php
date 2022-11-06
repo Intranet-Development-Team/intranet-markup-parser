@@ -120,8 +120,8 @@ class IMP
         $str = preg_replace('/\^\{(?=[^}]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/\_\{(?=[^}]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
         $str = preg_replace('/\`\`\`(?=[^`]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/(?<!\!)\[(?!\[)(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)(?<!\])\]\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<a target=\"_blank\" href=\"$5\">$1</a>", $str); // Link
-        $str = preg_replace('/\!\[\[(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\]\]\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<img src=\"$5\" alt=\"$1\">", $str); // Image
+        $str = preg_replace('/\[(?!\[)(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)(?<!\])\]\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<a target=\"_blank\" href=\"$5\">$1</a>", $str); // Link
+        $str = preg_replace('/\&lt;(?=[^\]]+)([^\n\<\>]*?(?:(\<(.+?)\>)[^\n\2\4]*?(\<\/\3\>)[^\n\<\>]*?)*?)\&gt;\(((?:'.implode("|",$this->allowedLinks).')[^\)]+?)\)/', "<img src=\"$5\" alt=\"$1\">", $str); // Image
         return $str;
     }
 
@@ -131,11 +131,11 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "\n", $str); // Unify line breaks indicators and remove excess breaks
         if ($this->autoURL)
         {
-            $str = preg_replace('/(?<!\]\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
+            $str = preg_replace('/(?<!(?:\]|\&gt;)\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
         }
         $str = $this->block($str);
         $str = $this->inline($str);
-        $str = preg_replace("/\n/", "", $str);
+        $str = preg_replace("/\n/", "", $str); // minimize html output
         return $str;
     }
 
@@ -145,7 +145,7 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
         if ($this->autoURL)
         {
-            $str = preg_replace('/(?<!\]\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
+            $str = preg_replace('/(?<!(?:\]|\&gt;)\()(?>(?:'.implode("|",$this->allowedLinks).')[^\s]+)(?!\]\()/', "<a target=\"_blank\" href=\"$0\">$0</a>", $str); // auto URL
         }
         $str = $this->inline($str);
         return $str;
