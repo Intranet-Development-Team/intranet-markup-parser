@@ -9,9 +9,7 @@ class IMP
             'ftps?:\/\/',
             'mailto:',
             'tel:',
-            'data:image\/png;base64,',
-            'data:image\/gif;base64,',
-            'data:image\/jpeg;base64,',
+            'data:image\/(?:png|gif|jpeg);base64,',
             'irc:',
             'ircs:',
             'git:',
@@ -25,6 +23,11 @@ class IMP
         $this->autoURL = $auto;
     }
 
+    public function setLinkNewTab(bool $newtab): void
+    {
+        $this->linkNewTab = $newtab;
+    }
+
     public function setAllowedLinks(string ...$startwith): void
     {
         $this->allowedLinks = $startwith;
@@ -34,137 +37,288 @@ class IMP
 
     private function block(string $str): string
     {
-        $lines = explode("\n", $str);
-        $openedLists = []; // array element properties: indent => ["element" => tagname]
+        $lines = explode("\n", "\n" . $str);
+        $numberOfLines = count($lines);
 
-        foreach ($lines as &$line)
+        $openedBlockquotes = [];
+
+        $blockquote = function (int $linesindex = 0) use (&$lines, &$blockquote, $numberOfLines, &$openedBlockquotes)
         {
-            if (preg_match('/^( *)((?:\d+\.)|-|\*) +.+$/', $line, $match)) // Ordered and unordered lists (nestable)
-            {
-                $indent = strlen($match[1]);
-                $lastkey = array_key_last($openedLists);
-                $element = ($match[2] === "-" || $match[2] === "*" ? 'ul' : 'ol');
+            preg_match('/^ *((?:&gt;)*)(?!(?:&gt;))/', $lines[$linesindex], $match);
+            $originalblockindent = strlen($match[1]) / 4;
 
-                if (!empty($openedLists) && !isset($openedLists[$indent]) && $indent < $lastkey)
+            $prepend = "";
+            $append = "";
+
+            if ($originalblockindent > 0)
+            {
+                $prepend = "<blockquote>";
+                $openedBlockquotes[$originalblockindent] = true;
+            }
+
+            $openedLists = []; // array element properties: indent => ["element" => tagname]
+            $paragraphOpened = false;
+
+            for ($index = $linesindex; $index < $numberOfLines; $index++)
+            {
+                preg_match('/^( *)((?:&gt;)*)(?!(?:&gt;))(.*)$/', $lines[$index], $match);
+                $currentlineblockindent = strlen($match[2]) / 4;
+
+                if ($currentlineblockindent > $originalblockindent)
                 {
-                    for ($i = $indent - 1; $i > array_key_first($openedLists); $i--)
+                    $index = $blockquote($index) - 1;
+                    continue;
+                }
+                else if ($currentlineblockindent < $originalblockindent)
+                {
+                    if ($paragraphOpened)
                     {
-                        if (isset($openedLists[$i]))
+                        $lines[$index - 1]  .= '</p>';
+                        $paragraphOpened = false;
+                    }
+
+                    if (!empty($openedLists))
+                    {
+                        $temp = "";
+                        foreach ($openedLists as $toclose)
                         {
-                            break;
+                            $temp  = "</li></" . $toclose["element"] . ">" . $temp;
+                        }
+                        $lines[$index - 1] .= $temp;
+                        $openedLists = [];
+                    }
+
+                    for ($currentlineblockindent++; $currentlineblockindent <= $originalblockindent; $currentlineblockindent++)
+                    {
+                        if (isset($openedBlockquotes[$currentlineblockindent]))
+                        {
+                            $lines[$index - 1] .= "</blockquote>";
+                            unset($openedBlockquotes[$currentlineblockindent]);
                         }
                     }
-                    if (($indent - $i) < ($lastkey - $indent))
-                    {
-                        $indent = $i;
-                    }
-                    else
-                    {
-                        $indent = $lastkey;
-                    }
+
+                    return $index;
+                }
+                else
+                {
+                    $lines[$index] = $match[1] . $match[3];
                 }
 
-                if (isset($openedLists[$indent]))
+                if (preg_match('/^( *)((?:\d+\.)|-|\*) +(.+)$/', $lines[$index], $match)) // Ordered and unordered lists (nestable) open
                 {
-                    $line = '</li>' . $line;
-                }
-
-                if (!empty($openedLists) && $lastkey !== $indent)
-                {
-                    if ($indent > $lastkey)
+                    if ($paragraphOpened)
                     {
-                        $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<' . $element . '><li>', $line, 1);
-                        $openedLists[$indent] = ["element" => $element];
+                        $prepend .= '</p>';
+                        $paragraphOpened = false;
                     }
-                    else
+
+                    $indent = strlen($match[1]);
+                    $lastkey = array_key_last($openedLists);
+                    $element = ($match[2] === "-" || $match[2] === "*" ? 'ul' : 'ol');
+
+                    if (!empty($openedLists) && !isset($openedLists[$indent]) && $indent < $lastkey)
                     {
-                        for ($i = $indent + 1; $i <= $lastkey; $i++)
+                        for ($i = $indent - 1; $i > array_key_first($openedLists); $i--)
                         {
                             if (isset($openedLists[$i]))
                             {
-                                $line = "</li></" . $openedLists[$i]["element"] . ">" . $line;
-                                unset($openedLists[$i]);
+                                break;
                             }
                         }
-                        $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<li>', $line, 1);
+                        if (($indent - $i) < ($lastkey - $indent))
+                        {
+                            $indent = $i;
+                        }
+                        else
+                        {
+                            $indent = $lastkey;
+                        }
                     }
-                }
-                else if (!isset($openedLists[$indent]))
-                {
-                    $openedLists = [];
-                    $openedLists[$indent] = ["element" => $element];
-                    $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<' . $element . '><li>', $line, 1);
-                }
-                else if (isset($openedLists[$indent]))
-                {
-                    $line = preg_replace('/ *((?:\d+\.)|-|\*) +/', '<li>', $line, 1);
-                }
-            }
-            else
-            {
-                if (!empty($openedLists))
-                {
-                    foreach ($openedLists as $toclose)
+
+                    if (!empty($openedLists) && $lastkey !== $indent)
                     {
-                        $line = "</li></" . $toclose["element"] . ">\n" . $line;
+                        if ($indent > $lastkey)
+                        {
+                            $lines[$index]  = $match[3];
+                            $prepend .= '<' . $element . '><li>';
+                            $openedLists[$indent] = ["element" => $element];
+                        }
+                        else
+                        {
+                            for ($i = $lastkey; $i > $indent; $i--)
+                            {
+                                if (isset($openedLists[$i]))
+                                {
+                                    $prepend .= "</li></" . $openedLists[$i]["element"] . ">";
+                                    unset($openedLists[$i]);
+                                }
+                            }
+                            $lines[$index]  = $match[3];
+                            $prepend .= '<li>';
+                        }
                     }
-                    $openedLists = [];
+                    else if (!isset($openedLists[$indent]))
+                    {
+                        $openedLists = [];
+                        $lines[$index]  = $match[3];
+                        $prepend .= '<' . $element . '><li>';
+                        $openedLists[$indent] = ["element" => $element];
+                    }
+                    else if (isset($openedLists[$indent]))
+                    {
+                        $prepend .= '</li>';
+                        $lines[$index]  = $match[3];
+                        $prepend .= '<li>';
+                    }
                 }
-                if (preg_match('/^ *(#{1,6}(?!#)) *(.+?)$/', $line, $match)) // Headings 1-6
+                else if (!empty($openedLists) && preg_match('/^ {4,}(.+)$/', $lines[$index], $match))
                 {
-                    $line = '<h' . strlen($match[1]) . '>' . $match[2] . '</h' . strlen($match[1]) . '>';
+                    $lines[$index]  = $match[1];
+                    if ($paragraphOpened && preg_match('/^\s*$/', $lines[$index]))
+                    {
+                        $prepend .= '</p>';
+                        $paragraphOpened = false;
+                    }
+
+                    if (preg_match('/^ *(#{1,6}(?!#)) *(.+?) *(#{1,6}(?!#))? *$/', $lines[$index], $match)) // Headings 1-6
+                    {
+                        if ($paragraphOpened)
+                        {
+                            $prepend .= '</p>';
+                            $paragraphOpened = false;
+                        }
+                        $prepend .= '<h' . strlen($match[1]) . '>';
+                        $lines[$index]  = $match[2];
+                        $append .= '</h' . strlen($match[1]) . '>';
+                    }
+                    else if (preg_match('/^ *(=|-|#|_)\1{4,} *?$/', $lines[$index])) // Horizontal break
+                    {
+                        if ($paragraphOpened)
+                        {
+                            $prepend .= '</p>';
+                            $paragraphOpened = false;
+                        }
+                        $lines[$index]  = '<hr>';
+                    }
+                    else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                    {
+                        $prepend .= '<br>';
+                    }
+                    else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                    {
+                        $prepend .= '<p>';
+                        $paragraphOpened = true;
+                    }
                 }
-                else if (preg_match('/^ *&gt; *(.+?)$/', $line, $match)) // Blockquote
+                else
                 {
-                    $line = '<blockquote>' . $match[1] . '</blockquote>';
+                    if (!empty($openedLists))  // Ordered and unordered lists (nestable) close
+                    {
+                        foreach ($openedLists as $toclose)
+                        {
+                            $prepend = "</li></" . $toclose["element"] . ">" . $prepend;
+                        }
+                        $openedLists = [];
+                    }
+
+                    if ($paragraphOpened && preg_match('/^\s*$/', $lines[$index]))
+                    {
+                        $prepend .= '</p>';
+                        $paragraphOpened = false;
+                    }
+
+                    if (preg_match('/^ *(#{1,6}(?!#)) *(.+?) *(#{1,6}(?!#))? *$/', $lines[$index], $match)) // Headings 1-6
+                    {
+                        if ($paragraphOpened)
+                        {
+                            $prepend .= '</p>';
+                            $paragraphOpened = false;
+                        }
+                        $prepend .= '<h' . strlen($match[1]) . '>';
+                        $lines[$index]  = $match[2];
+                        $append .= '</h' . strlen($match[1]) . '>';
+                    }
+                    else if (preg_match('/^ *(=|-|#|_)\1{4,} *?$/', $lines[$index])) // Horizontal break
+                    {
+                        if ($paragraphOpened)
+                        {
+                            $prepend .= '</p>';
+                            $paragraphOpened = false;
+                        }
+                        $lines[$index]  = '<hr>';
+                    }
+                    else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                    {
+                        $prepend .= '<br>';
+                    }
+                    else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                    {
+                        $prepend .= '<p>';
+                        $paragraphOpened = true;
+                    }
                 }
-                else if (preg_match('/^ *(=|-|#)\1{4,} *?$/', $line, $match)) // Horizontal break
-                {
-                    $line = '<hr>';
-                }
-                $line = preg_replace('/(?:^|\n)([^<>]+?)(?:$|\n)/', "<p>$1</p>", $line); // Paragraph
+                $lines[$index]  = $prepend . $lines[$index]  . $append;
+                $prepend = "";
+                $append = "";
             }
-        }
-        if (!empty($openedLists))
-        {
-            foreach ($openedLists as $toclose)
+
+            if ($paragraphOpened)
             {
-                $line .= "</li></" . $toclose["element"] . ">\n";
+                $lines[$index - 1]  .= '</p>';
+                $paragraphOpened = false;
             }
-            $openedLists = [];
-        }
-        return implode("\n", $lines);
+
+            if (!empty($openedLists))
+            {
+                $temp = "";
+                foreach ($openedLists as $toclose)
+                {
+                    $temp  = "</li></" . $toclose["element"] . ">" . $temp;
+                }
+                $lines[$index - 1] .= $temp;
+                $openedLists = [];
+            }
+
+            foreach ($openedBlockquotes as $k => $value)
+            {
+                $lines[$index - 1] .= "</blockquote>";
+                unset($openedBlockquotes[$k]);
+            }
+
+            return $index;
+        };
+        $blockquote();
+        return implode("", $lines);
     }
 
     private function inline(string $str, bool $imglineheight = false): string
     {
-        $str = preg_replace('/\*\*\*(?=[^*])([^\n\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
-        $str = preg_replace('/(?<!\*)\*\*(?=[^*])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
-        $str = preg_replace('/(?<!\*)\*(?=[^*])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\*/', "<em>$1</em>", $str); //Italic
-        $str = preg_replace('/\_\_(?=[^_])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\_\_/', "<u>$1</u>", $str); // Underline
-        $str = preg_replace('/\~\~(?=[^~])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\~\~/', "<s>$1</s>", $str); //Strikethrough
-        $str = preg_replace('/\=\=(?=[^=])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\=\=/', "<mark>$1</mark>", $str); // Highlight
-        $str = preg_replace('/\^\{(?=[^}])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
-        $str = preg_replace('/\_\{(?=[^}])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
-        $str = preg_replace('/\`\`\`(?=[^`])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/\[(?=[^\]])([^\n\<\>]*?(?:(\<(.+?)\>)[^\n]*?(\<\/\3\>)[^\n\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\n\)]+?)\)/', "<a href=\"$5\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
-        $str = preg_replace('/\&lt;(?!(?:&gt;))([^\n\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\n\)]+?)\)/', "<img src=\"$2\" alt=\"$1\" style=\"" . ($imglineheight ? "max-height:1em;width:fit-content;" : "max-width:100%;") . "\">", $str); // Image
+        $str = preg_replace('/\*\*\*(?=[^*])([^\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
+        $str = preg_replace('/(?<!\*)\*\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
+        $str = preg_replace('/(?<!\*)\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*/', "<em>$1</em>", $str); //Italic
+        $str = preg_replace('/\_\_(?=[^_])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\_\_/', "<u>$1</u>", $str); // Underline
+        $str = preg_replace('/\~\~(?=[^~])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\~\~/', "<s>$1</s>", $str); //Strikethrough
+        $str = preg_replace('/\=\=(?=[^=])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\=\=/', "<mark>$1</mark>", $str); // Highlight
+        $str = preg_replace('/\^\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
+        $str = preg_replace('/\_\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
+        $str = preg_replace('/\`\`\`(?=[^`])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str); // Code
+        $str = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$5\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
+        $str = preg_replace('/\&lt;(?!(?:&gt;))([^\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$2\" alt=\"$1\" style=\"" . ($imglineheight ? "max-height:1em;width:fit-content;" : "max-width:100%;") . "\">", $str); // Image
         return $str;
     }
 
     public function text(string $str): string
     {
         $str = htmlspecialchars($str, ENT_QUOTES);
-        $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "\n", $str); // Unify line breaks indicators and remove excess breaks
-        
+        $str = preg_replace("/((\r(?!\n))|(\r\n))/", "\n", $str); // Unify line breaks indicators
+
         $str = $this->block($str);
         $str = $this->inline($str);
         if ($this->autoURL)
         {
             $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
         }
-
-        $str = preg_replace("/\n/", "", $str); // minimize html output
+        
         return $str;
     }
 
