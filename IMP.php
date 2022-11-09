@@ -61,7 +61,7 @@ class IMP
 
             for ($index = $linesindex; $index < $numberOfLines; $index++)
             {
-                preg_match('/^( *)((?:&gt;)*)(?!(?:&gt;))(.*)$/', $lines[$index], $match);
+                preg_match('/^( *)((?:&gt;)*) *(.*)$/', $lines[$index], $match);
                 $currentlineblockindent = strlen($match[2]) / 4;
 
                 if ($currentlineblockindent > $originalblockindent)
@@ -71,33 +71,30 @@ class IMP
                 }
                 else if ($currentlineblockindent < $originalblockindent)
                 {
-                    if ($paragraphOpened)
+                    if (isset($openedBlockquotes[$currentlineblockindent]) || $currentlineblockindent === 0)
                     {
-                        $lines[$index - 1]  .= '</p>';
-                        $paragraphOpened = false;
-                    }
-
-                    if (!empty($openedLists))
-                    {
-                        $temp = "";
-                        foreach ($openedLists as $toclose)
+                        if ($paragraphOpened)
                         {
-                            $temp  = "</li></" . $toclose["element"] . ">" . $temp;
+                            $lines[$index - 1]  .= '</p>';
+                            $paragraphOpened = false;
                         }
-                        $lines[$index - 1] .= $temp;
-                        $openedLists = [];
-                    }
 
-                    for ($currentlineblockindent++; $currentlineblockindent <= $originalblockindent; $currentlineblockindent++)
-                    {
-                        if (isset($openedBlockquotes[$currentlineblockindent]))
+                        if (!empty($openedLists))
                         {
-                            $lines[$index - 1] .= "</blockquote>";
-                            unset($openedBlockquotes[$currentlineblockindent]);
+                            $temp = "";
+                            foreach ($openedLists as $toclose)
+                            {
+                                $temp  = "</li></" . $toclose["element"] . ">" . $temp;
+                            }
+                            $lines[$index - 1] .= $temp;
+                            $openedLists = [];
                         }
-                    }
 
-                    return $index;
+                        $lines[$index - 1] .= "</blockquote>";
+                        unset($openedBlockquotes[$originalblockindent]);
+
+                        return $index;
+                    }
                 }
                 else
                 {
@@ -318,7 +315,7 @@ class IMP
         {
             $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
         }
-        
+
         return $str;
     }
 
