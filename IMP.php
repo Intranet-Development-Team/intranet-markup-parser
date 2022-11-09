@@ -288,7 +288,7 @@ class IMP
         return implode("", $lines);
     }
 
-    private function inline(string $str, bool $imglineheight = false): string
+    private function inline(string $str, bool $allowimg = true): string
     {
         $str = preg_replace('/\*\*\*(?=[^*])([^\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
         $str = preg_replace('/(?<!\*)\*\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
@@ -299,8 +299,11 @@ class IMP
         $str = preg_replace('/\^\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/\_\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
         $str = preg_replace('/\`\`\`(?=[^`])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$5\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
-        $str = preg_replace('/\&lt;(?!(?:&gt;))([^\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$2\" alt=\"$1\" style=\"" . ($imglineheight ? "max-height:1em;width:fit-content;" : "max-width:100%;") . "\">", $str); // Image
+        $str = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$4\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
+        if ($allowimg)
+        {
+            $str = preg_replace('/\&lt;(?!(?:&gt;))([^\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$2\" alt=\"$1\">", $str); // Image
+        }
         return $str;
     }
 
@@ -323,7 +326,7 @@ class IMP
     {
         $str = htmlspecialchars($str, ENT_QUOTES);
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
-        $str = $this->inline($str, true);
+        $str = $this->inline($str, false);
         if ($this->autoURL)
         {
             $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)(?!\))/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
