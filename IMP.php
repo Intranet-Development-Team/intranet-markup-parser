@@ -35,8 +35,11 @@ class IMP
 
     ## Parsers ##
 
-    private function block(string $str): string
+    public function text(string $str): string
     {
+        $str = htmlspecialchars($str, ENT_QUOTES);
+        $str = preg_replace("/((\r(?!\n))|(\r\n))/", "\n", $str); // Unify line breaks indicators
+
         $lines = explode("\n", "\n" . $str);
         $numberOfLines = count($lines);
 
@@ -58,6 +61,7 @@ class IMP
 
             $openedLists = []; // array element properties: indent => ["element" => tagname]
             $paragraphOpened = false;
+            $codeblockOpened = false;
 
             for ($index = $linesindex; $index < $numberOfLines; $index++)
             {
@@ -73,6 +77,12 @@ class IMP
                 {
                     if (isset($openedBlockquotes[$currentlineblockindent]) || $currentlineblockindent === 0)
                     {
+                        if ($codeblockOpened)
+                        {
+                            $prepend  .= '</pre></code>';
+                            $codeblockOpened = false;
+                        }
+
                         if ($paragraphOpened)
                         {
                             $lines[$index - 1]  .= '</p>';
@@ -103,6 +113,11 @@ class IMP
 
                 if (preg_match('/^( *)((?:\d+\.)|-|\*) +(.+)$/', $lines[$index], $match)) // Ordered and unordered lists (nestable) open
                 {
+                    if ($codeblockOpened)
+                    {
+                        $prepend  .= '</pre></code>';
+                        $codeblockOpened = false;
+                    }
                     if ($paragraphOpened)
                     {
                         $prepend .= '</p>';
@@ -168,95 +183,195 @@ class IMP
                         $prepend .= '<li>';
                     }
                 }
-                else if (!empty($openedLists) && preg_match('/^ {4,}(.+)$/', $lines[$index], $match))
+                else if (!empty($openedLists) && preg_match('/^ {4,}(.*)$/', $lines[$index], $match))
                 {
                     $lines[$index]  = $match[1];
-                    if ($paragraphOpened && preg_match('/^\s*$/', $lines[$index]))
+                    if (preg_match('/^ *\`\`\` *$/', $lines[$index]))
                     {
-                        $prepend .= '</p>';
-                        $paragraphOpened = false;
+                        $lines[$index]  = "";
+                        if ($paragraphOpened)
+                        {
+                            $prepend .= '</p>';
+                            $paragraphOpened = false;
+                        }
+                        if (!$codeblockOpened)
+                        {
+                            $prepend .= '<code><pre>';
+                            $codeblockOpened = true;
+                        }
+                        else
+                        {
+                            $prepend .= '</pre></code>';
+                            $codeblockOpened = false;
+                        }
                     }
+                    if (!$codeblockOpened)
+                    {
+                        if ($paragraphOpened && preg_match('/^\s*$/', $lines[$index]))
+                        {
+                            $prepend .= '</p>';
+                            $paragraphOpened = false;
+                        }
 
-                    if (preg_match('/^ *(#{1,6}(?!#)) *(.+?) *(#{1,6}(?!#))? *$/', $lines[$index], $match)) // Headings 1-6
-                    {
-                        if ($paragraphOpened)
+
+                        if (preg_match('/^ *(#{1,6}(?!#)) *(.+?) *(#{1,6}(?!#))? *$/', $lines[$index], $match)) // Headings 1-6
                         {
-                            $prepend .= '</p>';
-                            $paragraphOpened = false;
+                            if ($codeblockOpened)
+                            {
+                                $prepend .= '</pre></code>';
+                                $codeblockOpened = false;
+                            }
+                            if ($paragraphOpened)
+                            {
+                                $prepend .= '</p>';
+                                $paragraphOpened = false;
+                            }
+                            $prepend .= '<h' . strlen($match[1]) . '>';
+                            $lines[$index]  = $match[2];
+                            $append .= '</h' . strlen($match[1]) . '>';
                         }
-                        $prepend .= '<h' . strlen($match[1]) . '>';
-                        $lines[$index]  = $match[2];
-                        $append .= '</h' . strlen($match[1]) . '>';
-                    }
-                    else if (preg_match('/^ *(=|-|#|_)\1{4,} *?$/', $lines[$index])) // Horizontal break
-                    {
-                        if ($paragraphOpened)
+                        else if (preg_match('/^ *(=|-|#|_|\*)\1{4,} *?$/', $lines[$index])) // Horizontal break
                         {
-                            $prepend .= '</p>';
-                            $paragraphOpened = false;
+                            if ($codeblockOpened)
+                            {
+                                $prepend .= '</pre></code>';
+                                $codeblockOpened = false;
+                            }
+                            if ($paragraphOpened)
+                            {
+                                $prepend .= '</p>';
+                                $paragraphOpened = false;
+                            }
+                            $lines[$index]  = '<hr>';
                         }
-                        $lines[$index]  = '<hr>';
-                    }
-                    else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
-                    {
-                        $prepend .= '<br>';
-                    }
-                    else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
-                    {
-                        $prepend .= '<p>';
-                        $paragraphOpened = true;
+                        else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                        {
+                            $prepend .= '<br>';
+                        }
+                        else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                        {
+                            $prepend .= '<p>';
+                            $paragraphOpened = true;
+                        }
                     }
                 }
                 else
                 {
-                    if (!empty($openedLists))  // Ordered and unordered lists (nestable) close
+                    if (preg_match('/^ *\`\`\` *$/', $lines[$index]))
                     {
-                        foreach ($openedLists as $toclose)
-                        {
-                            $prepend = "</li></" . $toclose["element"] . ">" . $prepend;
-                        }
-                        $openedLists = [];
-                    }
-
-                    if ($paragraphOpened && preg_match('/^\s*$/', $lines[$index]))
-                    {
-                        $prepend .= '</p>';
-                        $paragraphOpened = false;
-                    }
-
-                    if (preg_match('/^ *(#{1,6}(?!#)) *(.+?) *(#{1,6}(?!#))? *$/', $lines[$index], $match)) // Headings 1-6
-                    {
+                        $lines[$index] = "";
                         if ($paragraphOpened)
                         {
                             $prepend .= '</p>';
                             $paragraphOpened = false;
                         }
-                        $prepend .= '<h' . strlen($match[1]) . '>';
-                        $lines[$index]  = $match[2];
-                        $append .= '</h' . strlen($match[1]) . '>';
+                        if (!$codeblockOpened)
+                        {
+                            $prepend .= '<code><pre>';
+                            $codeblockOpened = true;
+                        }
+                        else
+                        {
+                            $prepend .= '</pre></code>';
+                            $codeblockOpened = false;
+                        }
                     }
-                    else if (preg_match('/^ *(=|-|#|_)\1{4,} *?$/', $lines[$index])) // Horizontal break
+                    if (!$codeblockOpened)
                     {
-                        if ($paragraphOpened)
+                        if (!empty($openedLists))  // Ordered and unordered lists (nestable) close
+                        {
+                            if ($codeblockOpened)
+                            {
+                                $prepend .= '</pre></code>';
+                                $codeblockOpened = false;
+                            }
+                            if ($paragraphOpened)
+                            {
+                                $prepend .= "</p>";
+                                $paragraphOpened = false;
+                            }
+                            $temp = "";
+                            foreach ($openedLists as $toclose)
+                            {
+                                $temp  = "</li></" . $toclose["element"] . ">" . $temp;
+                            }
+                            $prepend .= $temp;
+                            $openedLists = [];
+                        }
+
+                        if ($paragraphOpened && preg_match('/^\s*$/', $lines[$index]))
                         {
                             $prepend .= '</p>';
                             $paragraphOpened = false;
                         }
-                        $lines[$index]  = '<hr>';
-                    }
-                    else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
-                    {
-                        $prepend .= '<br>';
-                    }
-                    else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
-                    {
-                        $prepend .= '<p>';
-                        $paragraphOpened = true;
+
+                        if (preg_match('/^ *(#{1,6}(?!#)) *(.+?) *(#{1,6}(?!#))? *$/', $lines[$index], $match)) // Headings 1-6
+                        {
+                            if ($codeblockOpened)
+                            {
+                                $prepend .= '</pre></code>';
+                                $codeblockOpened = false;
+                            }
+                            if ($paragraphOpened)
+                            {
+                                $prepend .= '</p>';
+                                $paragraphOpened = false;
+                            }
+                            $prepend .= '<h' . strlen($match[1]) . '>';
+                            $lines[$index]  = $match[2];
+                            $append .= '</h' . strlen($match[1]) . '>';
+                        }
+                        else if (preg_match('/^ *(=|-|#|_|\*)\1{4,} *?$/', $lines[$index])) // Horizontal break
+                        {
+                            if ($codeblockOpened)
+                            {
+                                $prepend .= '</pre></code>';
+                                $codeblockOpened = false;
+                            }
+                            if ($paragraphOpened)
+                            {
+                                $prepend .= '</p>';
+                                $paragraphOpened = false;
+                            }
+                            $lines[$index]  = '<hr>';
+                        }
+                        else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                        {
+                            $prepend .= '<br>';
+                        }
+                        else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
+                        {
+                            $prepend .= '<p>';
+                            $paragraphOpened = true;
+                        }
                     }
                 }
+
+                $lines[$index] = preg_replace('/\*\*\*(?=[^*])([^\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $lines[$index]); // Bold and italic
+                $lines[$index] = preg_replace('/(?<!\*)\*\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $lines[$index]); // Bold
+                $lines[$index] = preg_replace('/(?<!\*)\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*/', "<em>$1</em>", $lines[$index]); //Italic
+                $lines[$index] = preg_replace('/\_\_(?=[^_])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\_\_/', "<u>$1</u>", $lines[$index]); // Underline
+                $lines[$index] = preg_replace('/\~\~(?=[^~])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\~\~/', "<s>$1</s>", $lines[$index]); //Strikethrough
+                $lines[$index] = preg_replace('/\=\=(?=[^=])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\=\=/', "<mark>$1</mark>", $lines[$index]); // Highlight
+                $lines[$index] = preg_replace('/\^\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sup>$1</sup>", $lines[$index]); // Superscript
+                $lines[$index] = preg_replace('/\_\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sub>$1</sub>", $lines[$index]); // Subscript
+                $lines[$index] = preg_replace('/\`(?=[^`])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\`/', "<code>$1</code>", $lines[$index]); // Code
+                $lines[$index] = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$4\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$index]); // Link
+                $lines[$index] = preg_replace('/\&lt;(?!(?:&gt;))([^\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$2\" alt=\"$1\">", $lines[$index]); // Image
+                if ($this->autoURL)
+                {
+                    $lines[$index] = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $lines[$index]); // auto URL
+                }
+
                 $lines[$index]  = $prepend . $lines[$index]  . $append;
                 $prepend = "";
                 $append = "";
+            }
+
+            if ($codeblockOpened)
+            {
+                $lines[$index - 1]  .= '</pre></code>';
+                $codeblockOpened = false;
             }
 
             if ($paragraphOpened)
@@ -285,11 +400,14 @@ class IMP
             return $index;
         };
         $blockquote();
-        return implode("", $lines);
+        return implode("\n", $lines);
     }
 
-    private function inline(string $str, bool $allowimg = true): string
+    public function line(string $str): string
     {
+        $str = htmlspecialchars($str, ENT_QUOTES);
+
+        $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
         $str = preg_replace('/\*\*\*(?=[^*])([^\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
         $str = preg_replace('/(?<!\*)\*\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
         $str = preg_replace('/(?<!\*)\*(?=[^*])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\*/', "<em>$1</em>", $str); //Italic
@@ -298,39 +416,13 @@ class IMP
         $str = preg_replace('/\=\=(?=[^=])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\=\=/', "<mark>$1</mark>", $str); // Highlight
         $str = preg_replace('/\^\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/\_\{(?=[^}])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
-        $str = preg_replace('/\`\`\`(?=[^`])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\`\`\`/', "<code>$1</code>", $str); // Code
+        $str = preg_replace('/\`(?=[^`])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\`/', "<code>$1</code>", $str); // Code
         $str = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:(\<(.+?)\>)[^]*?(\<\/\3\>)[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$4\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
-        if ($allowimg)
-        {
-            $str = preg_replace('/\&lt;(?!(?:&gt;))([^\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$2\" alt=\"$1\">", $str); // Image
-        }
-        return $str;
-    }
-
-    public function text(string $str): string
-    {
-        $str = htmlspecialchars($str, ENT_QUOTES);
-        $str = preg_replace("/((\r(?!\n))|(\r\n))/", "\n", $str); // Unify line breaks indicators
-
-        $str = $this->block($str);
-        $str = $this->inline($str);
-        if ($this->autoURL)
-        {
-            $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
-        }
-
-        return $str;
-    }
-
-    public function line(string $str): string
-    {
-        $str = htmlspecialchars($str, ENT_QUOTES);
-        $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
-        $str = $this->inline($str, false);
         if ($this->autoURL)
         {
             $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)(?!\))/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
         }
+
         return $str;
     }
 }
