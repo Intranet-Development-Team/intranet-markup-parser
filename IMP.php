@@ -4,6 +4,7 @@ class IMP
     ## Settings ##
     protected $autoURL = true,
         $linkNewTab = true,
+        $inlineAllowImg = false,
         $allowedLinks = [
             'https?:\/\/',
             'ftps?:\/\/',
@@ -28,6 +29,11 @@ class IMP
         $this->linkNewTab = $newtab;
     }
 
+    public function inlineAllowImg(bool $allow): void
+    {
+        $this->inlineAllowImg = $allow;
+    }
+
     public function setAllowedLinks(string ...$startwith): void
     {
         $this->allowedLinks = $startwith;
@@ -39,6 +45,7 @@ class IMP
     {
         $str = htmlspecialchars($str, ENT_QUOTES);
         $str = preg_replace("/((\r(?!\n))|(\r\n))/", "\n", $str); // Unify line breaks indicators
+        $str = preg_replace("/\t/", "    ", $str); // Unify spacers
 
         $lines = explode("\n", "\n" . $str);
         $numberOfLines = count($lines);
@@ -69,7 +76,7 @@ class IMP
 
             for ($index = $linesindex; $index < $numberOfLines; $index++)
             {
-                if (preg_match('/^ *\{\{(.+?)\}\}: *((?:' . implode("|", $this->allowedLinks) . ').+) *$/', $lines[$index], $match))
+                if (preg_match('/^ *\{(.+?)(?<!\\\\)\}: *((?:' . implode("|", $this->allowedLinks) . ').+) *$/', $lines[$index], $match))
                 {
                     $setreferences[$match[1]] = $match[2];
                     $lines[$index] = "";
@@ -357,23 +364,23 @@ class IMP
                     }
                 }
 
-                $lines[$index] = preg_replace('/\*\*\*(?=[^*])([^\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $lines[$index]); // Bold and italic
-                $lines[$index] = preg_replace('/\*\*(?=[^*])([^\<\>]*?(?:\<(.+?\>)[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $lines[$index]); // Bold
-                $lines[$index] = preg_replace('/\*(?=[^*])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\*/', "<em>$1</em>", $lines[$index]); //Italic
-                $lines[$index] = preg_replace('/\_\_(?=[^_])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\_\_/', "<u>$1</u>", $lines[$index]); // Underline
-                $lines[$index] = preg_replace('/\~\~(?=[^~])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\~\~/', "<s>$1</s>", $lines[$index]); //Strikethrough
-                $lines[$index] = preg_replace('/\=\=(?=[^=])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\=\=/', "<mark>$1</mark>", $lines[$index]); // Highlight
-                $lines[$index] = preg_replace('/\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\})\}(?!\})/', "<sup>$1</sup>", $lines[$index]); // Superscript
-                $lines[$index] = preg_replace('/\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\})\}(?!\})/', "<sub>$1</sub>", $lines[$index]); // Subscript
-                $lines[$index] = preg_replace('/\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\`/', "<code>$1</code>", $lines[$index]); // Code
-                $lines[$index] = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$index]); // Link
-                preg_match_all('/\[(?=[^\]])[^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\1\>[^\<\>]*?)*?\]\{\{([^\}]+?)\}\}/', $lines[$index], $matches); // Reference Link
+                $lines[$index] = preg_replace('/(?<!\\\\)\*\*\*(?=[^*])([^\<\>]+?)(?<!\\\\)\*\*\*/', "<strong><em>$1</em></strong>", $lines[$index]); // Bold and italic
+                $lines[$index] = preg_replace('/(?<!\\\\)\*\*(?=[^*])([^\<\>]*?(?:\<(.+?\>)[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\*\*/', "<strong>$1</strong>", $lines[$index]); // Bold
+                $lines[$index] = preg_replace('/(?<!\\\\)\*(?=[^*])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\*/', "<em>$1</em>", $lines[$index]); //Italic
+                $lines[$index] = preg_replace('/(?<!\\\\)\_\_(?=[^_])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\_\_/', "<u>$1</u>", $lines[$index]); // Underline
+                $lines[$index] = preg_replace('/(?<!\\\\)\~\~(?=[^~])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\~\~/', "<s>$1</s>", $lines[$index]); //Strikethrough
+                $lines[$index] = preg_replace('/(?<!\\\\)\=\=(?=[^=])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\=\=/', "<mark>$1</mark>", $lines[$index]); // Highlight
+                $lines[$index] = preg_replace('/(?<!\\\\)\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}(?!\))/', "<sup>$1</sup>", $lines[$index]); // Superscript
+                $lines[$index] = preg_replace('/(?<!\\\\)\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}(?!\))/', "<sub>$1</sub>", $lines[$index]); // Subscript
+                $lines[$index] = preg_replace('/(?<!\\\\)\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\`/', "<code>$1</code>", $lines[$index]); // Code
+                $lines[$index] = preg_replace('/(?<!\\\\)\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$index]); // Link
+                preg_match_all('/(?<!\\\\)\[(?=[^\]])[^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\1\>[^\<\>]*?)*?(?<!\\\\)\]\(\{([^\}]+?)\}(?<!\\\\)\)/', $lines[$index], $matches); // Reference Link
                 foreach ($matches[2] as $match)
                 {
                     $referenceLinks[] = [$index, $match];
                 }
-                $lines[$index] = preg_replace('/\&lt;(?!(?:&gt;))([^\<\>]+?)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<img src=\"$2\" alt=\"$1\">", $lines[$index]); // Image
-                preg_match_all('/\&lt;(?!&gt;)[^\<\>]+?\&gt;\{\{([^\}]+?)\}\}/', $lines[$index], $matches); // Reference Image
+                $lines[$index] = preg_replace('/(?<!\\\\)\&lt;(?!(?:&gt;))([^\<\>]+?)(?<!\\\\)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<img src=\"$2\" alt=\"$1\">", $lines[$index]); // Image
+                preg_match_all('/(?<!\\\\)\&lt;(?!&gt;)[^\<\>]+?(?<!\\\\)\&gt;\(\{([^\}]+?)(?<!\\\\)\}\)/', $lines[$index], $matches); // Reference Image
                 foreach ($matches[1] as $match)
                 {
                     $referenceImgs[] = [$index, $match];
@@ -382,6 +389,7 @@ class IMP
                 {
                     $lines[$index] = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $lines[$index]); // auto URL
                 }
+                $lines[$index] = preg_replace('/\\\\(.)/', "$1", $lines[$index]); // Escape characters
 
                 $lines[$index]  = $prepend . $lines[$index]  . $append;
                 $prepend = "";
@@ -425,7 +433,7 @@ class IMP
         {
             if (isset($setreferences[$linkref[1]]))
             {
-                $lines[$linkref[0]] = preg_replace('/\[([^\]]+?)\]\{\{[^\}]+?\}\}/', "<a href=\"" . $setreferences[$linkref[1]] . "\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$linkref[0]]); // Link
+                $lines[$linkref[0]] = preg_replace('/(?<!\\\\)\[([^\]]+?)(?<!\\\\)\]\(\{[^\}]+?(?<!\\\\)\}\)/', "<a href=\"" . $setreferences[$linkref[1]] . "\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$linkref[0]]); // Link
                 break;
             }
         }
@@ -433,7 +441,7 @@ class IMP
         {
             if (isset($setreferences[$imgref[1]]))
             {
-                $lines[$imgref[0]] = preg_replace('/\&lt;(?!(?:&gt;))(.+?)\&gt;\{\{[^\}]+?\}\}/', "<img src=\"" . $setreferences[$imgref[1]] . "\" alt=\"$1\">", $lines[$imgref[0]]); // Image
+                $lines[$imgref[0]] = preg_replace('/(?<!\\\\)\&lt;(?!(?:&gt;))(.+?)(?<!\\\\)\&gt;\(\{[^\}]+?(?<!\\\\)\}\)/', "<img src=\"" . $setreferences[$imgref[1]] . "\" alt=\"$1\">", $lines[$imgref[0]]); // Image
                 break;
             }
         }
@@ -446,23 +454,27 @@ class IMP
         $str = htmlspecialchars($str, ENT_QUOTES);
 
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
+        $str = preg_replace("/\t/", "    ", $str); // Unify spacers
 
-        $str = preg_replace('/\*\*\*(?=[^*])([^\<\>]+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
-        $str = preg_replace('/\*\*(?=[^*])([^\<\>]*?(?:\<(.+?\>)[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
-        $str = preg_replace('/\*(?=[^*])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\*/', "<em>$1</em>", $str); //Italic
-        $str = preg_replace('/\_\_(?=[^_])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\_\_/', "<u>$1</u>", $str); // Underline
-        $str = preg_replace('/\~\~(?=[^~])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\~\~/', "<s>$1</s>", $str); //Strikethrough
-        $str = preg_replace('/\=\=(?=[^=])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\=\=/', "<mark>$1</mark>", $str); // Highlight
-        $str = preg_replace('/\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
-        $str = preg_replace('/\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
-        $str = preg_replace('/\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
-
+        $str = preg_replace('/(?<!\\\\)\*\*\*(?=[^*])([^\<\>]+?)(?<!\\\\)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
+        $str = preg_replace('/(?<!\\\\)\*\*(?=[^*])([^\<\>]*?(?:\<(.+?\>)[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\*\*/', "<strong>$1</strong>", $str); // Bold
+        $str = preg_replace('/(?<!\\\\)\*(?=[^*])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\*/', "<em>$1</em>", $str); //Italic
+        $str = preg_replace('/(?<!\\\\)\_\_(?=[^_])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\_\_/', "<u>$1</u>", $str); // Underline
+        $str = preg_replace('/(?<!\\\\)\~\~(?=[^~])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\~\~/', "<s>$1</s>", $str); //Strikethrough
+        $str = preg_replace('/(?<!\\\\)\=\=(?=[^=])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\=\=/', "<mark>$1</mark>", $str); // Highlight
+        $str = preg_replace('/(?<!\\\\)\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}/', "<sup>$1</sup>", $str); // Superscript
+        $str = preg_replace('/(?<!\\\\)\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}/', "<sub>$1</sub>", $str); // Subscript
+        $str = preg_replace('/(?<!\\\\)\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\`/', "<code>$1</code>", $str); // Code
+        $str = preg_replace('/(?<!\\\\)\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
+        if ($this->inlineAllowImg)
+        {
+            $lstr = preg_replace('/(?<!\\\\)\&lt;(?!(?:&gt;))([^\<\>]+?)(?<!\\\\)\&gt;\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<img src=\"$2\" alt=\"$1\">", $str); // Image
+        }
         if ($this->autoURL)
         {
             $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)(?!\))/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
         }
-
+        $str = preg_replace('/\\\\(.)/', "$1", $str); // Escape characters
         return $str;
     }
 }
