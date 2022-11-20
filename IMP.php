@@ -373,6 +373,7 @@ class IMP
                 $lines[$index] = preg_replace('/(?<!\\\\)\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}(?!\))/', "<sup>$1</sup>", $lines[$index]); // Superscript
                 $lines[$index] = preg_replace('/(?<!\\\\)\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}(?!\))/', "<sub>$1</sub>", $lines[$index]); // Subscript
                 $lines[$index] = preg_replace('/(?<!\\\\)\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\`/', "<code>$1</code>", $lines[$index]); // Code
+                $lines[$index] = preg_replace('/(?<!\\\\)\$\$(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\$\$/', "<im-tex>$1</im-tex>", $lines[$index]); // Tex expressions (Tex rendering engine must be applied)
                 $lines[$index] = preg_replace('/(?<!\\\\)\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$index]); // Link
                 preg_match_all('/(?<!\\\\)\[(?=[^\]])[^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\1\>[^\<\>]*?)*?(?<!\\\\)\]\(\{([^\}]+?)\}(?<!\\\\)\)/', $lines[$index], $matches); // Reference Link
                 foreach ($matches[2] as $match)
@@ -465,6 +466,7 @@ class IMP
         $str = preg_replace('/(?<!\\\\)\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/(?<!\\\\)\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}/', "<sub>$1</sub>", $str); // Subscript
         $str = preg_replace('/(?<!\\\\)\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\`/', "<code>$1</code>", $str); // Code
+        $str = preg_replace('/(?<!\\\\)\$\$(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\$\$/', "<im-tex>$1</im-tex>", $str); // Tex expressions (Tex rendering engine must be applied)
         $str = preg_replace('/(?<!\\\\)\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
         if ($this->inlineAllowImg)
         {
