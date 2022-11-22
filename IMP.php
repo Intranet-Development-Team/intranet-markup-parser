@@ -82,6 +82,8 @@ class IMP
                     $lines[$index] = "";
                     continue;
                 }
+
+                $lines[$index] = preg_replace('/\\\\\\\\/', "&#92;", $lines[$index]); // Escape characters
                 preg_match('/^( *)((?:&gt;)*) *(.*)$/', $lines[$index], $match);
                 $currentlineblockindent = strlen($match[2]) / 4;
 
@@ -373,7 +375,6 @@ class IMP
                 $lines[$index] = preg_replace('/(?<!\\\\)\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}(?!\))/', "<sup>$1</sup>", $lines[$index]); // Superscript
                 $lines[$index] = preg_replace('/(?<!\\\\)\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}(?!\))/', "<sub>$1</sub>", $lines[$index]); // Subscript
                 $lines[$index] = preg_replace('/(?<!\\\\)\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\`/', "<code>$1</code>", $lines[$index]); // Code
-                $lines[$index] = preg_replace('/(?<!\\\\)\$\$(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\$\$/', "<im-tex>$1</im-tex>", $lines[$index]); // Tex expressions (Tex rendering engine must be applied)
                 $lines[$index] = preg_replace('/(?<!\\\\)\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $lines[$index]); // Link
                 preg_match_all('/(?<!\\\\)\[(?=[^\]])[^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\1\>[^\<\>]*?)*?(?<!\\\\)\]\(\{([^\}]+?)\}(?<!\\\\)\)/', $lines[$index], $matches); // Reference Link
                 foreach ($matches[2] as $match)
@@ -390,7 +391,7 @@ class IMP
                 {
                     $lines[$index] = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $lines[$index]); // auto URL
                 }
-                $lines[$index] = preg_replace('/\\\\(.)/', "$1", $lines[$index]); // Escape characters
+                $lines[$index] = preg_replace('/\\\\(\*|\_|\~|\=|\^|\{|\}|\(|\)|\`|\$|\[|\]|\&lt;|\&gt;)/', "$1", $lines[$index]); // Escape characters
 
                 $lines[$index]  = $prepend . $lines[$index]  . $append;
                 $prepend = "";
@@ -457,6 +458,8 @@ class IMP
         $str = preg_replace("/((\r(?!\n))|(\r\n))+/", "", $str); // Remove all line breaks
         $str = preg_replace("/\t/", "    ", $str); // Unify spacers
 
+        $str = preg_replace('/\\\\\\\\/', "&#92;", $str); // Escape characters
+
         $str = preg_replace('/(?<!\\\\)\*\*\*(?=[^*])([^\<\>]+?)(?<!\\\\)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
         $str = preg_replace('/(?<!\\\\)\*\*(?=[^*])([^\<\>]*?(?:\<(.+?\>)[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\*\*/', "<strong>$1</strong>", $str); // Bold
         $str = preg_replace('/(?<!\\\\)\*(?=[^*])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\*/', "<em>$1</em>", $str); //Italic
@@ -466,7 +469,6 @@ class IMP
         $str = preg_replace('/(?<!\\\\)\^\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/(?<!\\\\)\_\{(?=[^}])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\}/', "<sub>$1</sub>", $str); // Subscript
         $str = preg_replace('/(?<!\\\\)\`(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/(?<!\\\\)\$\$(?=[^`])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\$\$/', "<im-tex>$1</im-tex>", $str); // Tex expressions (Tex rendering engine must be applied)
         $str = preg_replace('/(?<!\\\\)\[(?=[^\]])([^\<\>]*?(?:\<(.+?)\>[^\<\>]*?\<\/\2\>[^\<\>]*?)*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)(?<!\\\\)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link
         if ($this->inlineAllowImg)
         {
@@ -476,7 +478,7 @@ class IMP
         {
             $str = preg_replace('/(?<!(?:<img src=")|(?:<a href="))(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)(?!\))/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
         }
-        $str = preg_replace('/\\\\(.)/', "$1", $str); // Escape characters
+        $str = preg_replace('/\\\\(\*|\_|\~|\=|\^|\{|\}|\(|\)|\`|\$|\[|\]|\&lt;|\&gt;)/', "$1", $str); // Escape characters
         return $str;
     }
 }
