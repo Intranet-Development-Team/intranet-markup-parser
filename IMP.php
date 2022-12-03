@@ -90,6 +90,7 @@ class IMP
                 if ($currentlineblockindent > $originalblockindent)
                 {
                     $index = $blockquote($index) - 1;
+                    $nobreaks = true;
                     continue;
                 }
                 else if ($currentlineblockindent < $originalblockindent)
@@ -265,7 +266,14 @@ class IMP
                         }
                         else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
                         {
-                            $prepend .= '<br>';
+                            if (!isset($nobreaks))
+                            {
+                                $prepend .= '<br>';
+                            }
+                            else
+                            {
+                                unset($nobreaks);
+                            }
                         }
                         else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
                         {
@@ -356,7 +364,14 @@ class IMP
                         }
                         else if ($paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
                         {
-                            $prepend .= '<br>';
+                            if (!isset($nobreaks))
+                            {
+                                $prepend .= '<br>';
+                            }
+                            else
+                            {
+                                unset($nobreaks);
+                            }
                         }
                         else if (!$paragraphOpened && !preg_match('/^\s*$/', $lines[$index]))
                         {
