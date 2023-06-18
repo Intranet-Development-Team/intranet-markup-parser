@@ -60,8 +60,9 @@ class IMP
         foreach ($this->lines as $key => $line)
         {
             // Escape backslashes
-            $line = preg_replace('/\\\\(?!&|\\\\)./', "$1", $line);
-            $line = preg_replace('/\\\\/', "", $line);
+            $line = preg_replace('/\\\\(?!&|\\\\)./', htmlentities("$1"), $line);
+            $line = preg_replace('/\\\\(?=&)/', "", $line);
+            $line = preg_replace('/\\\\(?=\\\\)/', '\\', $line);
 
             $line = preg_replace('/\*\*\*(?!\*)(.+?)\*\*\*/', "<strong><em>$1</em></strong>", $line); // Bold and italic
             $line = preg_replace('/\*\*(?!\*)(.*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\*\*/', "<strong>$1</strong>", $line); // Bold
@@ -92,42 +93,42 @@ class IMP
             $until = $this->total;
         }
 
-        if (preg_match('/^ *# *[^ ]/', $this->lines[$this->index]))
+        if (preg_match('/^ *# *[^ #]/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = preg_replace('/^ *# */', "", $this->lines[$this->index]);
             $this->lines[$this->index] = preg_replace('/ *# *$/', "", $this->lines[$this->index]);
             $this->prepends[$this->index] .= "<h1>" . $this->prepends[$this->index];
             $this->appends[$this->index] .= "</h1>";
         }
-        else if (preg_match('/^ *## *[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *## *[^ #]/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = preg_replace('/^ *## */', "", $this->lines[$this->index]);
             $this->lines[$this->index] = preg_replace('/ *## *$/', "", $this->lines[$this->index]);
             $this->prepends[$this->index] .= "<h2>" . $this->prepends[$this->index];
             $this->appends[$this->index] .= "</h2>";
         }
-        else if (preg_match('/^ *### *[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *### *[^ #]/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = preg_replace('/^ *### */', "", $this->lines[$this->index]);
             $this->lines[$this->index] = preg_replace('/ *### *$/', "", $this->lines[$this->index]);
             $this->prepends[$this->index] .= "<h3>" . $this->prepends[$this->index];
             $this->appends[$this->index] .= "</h3>";
         }
-        else if (preg_match('/^ *#### *[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *#### *[^ #]/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = preg_replace('/^ *#### */', "", $this->lines[$this->index]);
             $this->lines[$this->index] = preg_replace('/ *#### *$/', "", $this->lines[$this->index]);
             $this->prepends[$this->index] .= "<h4>" . $this->prepends[$this->index];
             $this->appends[$this->index] .= "</h4>";
         }
-        else if (preg_match('/^ *##### *[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *##### *[^ #]/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = preg_replace('/^ *##### */', "", $this->lines[$this->index]);
             $this->lines[$this->index] = preg_replace('/ *##### *$/', "", $this->lines[$this->index]);
             $this->prepends[$this->index] .= "<h5>" . $this->prepends[$this->index];
             $this->appends[$this->index] .= "</h5>";
         }
-        else if (preg_match('/^ *###### *[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *###### *[^ #]/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = preg_replace('/^ *###### */', "", $this->lines[$this->index]);
             $this->lines[$this->index] = preg_replace('/ *###### *$/', "", $this->lines[$this->index]);
@@ -338,10 +339,11 @@ class IMP
 
         // Escape backslashes
         $str = preg_replace('/\\\\(?!&|\\\\)./', htmlentities("$1"), $str);
-        $str = preg_replace('/\\\\/', "", $str);
+        $str = preg_replace('/\\\\(?!\\\\)/', "", $str);
+        $str = preg_replace('/\\\\(?=\\\\)/', '\\', $str);
 
         $str = preg_replace('/\*\*\*(?!\*)(.+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
-        $str = preg_replace('/\*\*(?!\*)(.*?(?:<(.+?)>)[^<>]*?<\/\2>[^<>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
+        $str = preg_replace('/\*\*(?!\*)(.*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
         $str = preg_replace('/\*(?!\*)(.*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\*/', "<em>$1</em>", $str); //Italic
         $str = preg_replace('/__(?!_)([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)__/', "<u>$1</u>", $str); // Underline
         $str = preg_replace('/~~(?!~)([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)~~/', "<s>$1</s>", $str); //Strikethrough
