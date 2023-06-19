@@ -37,15 +37,15 @@ class IMP
 
     private function encodeCharacters(string $str): string
     {
-        $characters = array('\\', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|');
-        $entities = array('&#92;', '&#42;', '&#95;', '&#123;', '&#125;', '&#91;', '&#93;', '&#60;', '&#62;', '&#40;', '&#41;', '&#35;', '&#43;', '&#45;', '&#46;', '&#33;', '&#124;');
+        $characters = array('\\', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|', '&');
+        $entities = array('&#92;', '&#42;', '&#95;', '&#123;', '&#125;', '&#91;', '&#93;', '&#60;', '&#62;', '&#40;', '&#41;', '&#35;', '&#43;', '&#45;', '&#46;', '&#33;', '&#124;', '&#x26;');
         return str_replace($characters, $entities, $str);
     }
 
     private function decodeCharacters(string $str): string
     {
-        $characters = array('\\', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|');
-        $entities = array('&#92;', '&#42;', '&#95;', '&#123;', '&#125;', '&#91;', '&#93;', '&#60;', '&#62;', '&#40;', '&#41;', '&#35;', '&#43;', '&#45;', '&#46;', '&#33;', '&#124;');
+        $characters = array('\\', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|', '&');
+        $entities = array('&#92;', '&#42;', '&#95;', '&#123;', '&#125;', '&#91;', '&#93;', '&#60;', '&#62;', '&#40;', '&#41;', '&#35;', '&#43;', '&#45;', '&#46;', '&#33;', '&#124;', '&#x26;');
         return str_replace($entities, $characters, $str);
     }
 
@@ -56,10 +56,13 @@ class IMP
 
     public function text(string $str): string
     {
-        $str = htmlspecialchars($str, ENT_QUOTES);
-        $str = preg_replace("/\\\\./", $this->encodeCharacters("$0"), $str); // Escape characters
-        $str = preg_replace("/\r(?!\n)|\r\n/", "\n", $str); // Unify line breaks indicators
-        $str = preg_replace("/\t/", "    ", $str); // Unify spacers
+        $str = htmlspecialchars($str);
+        $str = preg_replace_callback('/\\\\(.)/', function ($match)
+        {
+            return '\\' . $this->encodeCharacters($match[1]);
+        }, $str); // Escape characters
+        $str = preg_replace('/\r(?!\n)|\r\n/', "\n", $str); // Unify line breaks indicators
+        $str = preg_replace('/\t/', "    ", $str); // Unify spacers
 
         $this->lines = explode("\n", $str);
         $this->total = count($this->lines) - 1;
@@ -67,7 +70,7 @@ class IMP
         $this->appends = array_fill(0, count($this->lines), "");
 
         // Translator
-        for (; $this->index <= $this->total; $this->index++)
+        for ($this->index = 0; $this->index <= $this->total; $this->index++)
         {
             $this->processor();
         }
@@ -85,15 +88,29 @@ class IMP
             $line = preg_replace('/\^\{(?!\})([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\}/', "<sup>$1</sup>", $line); // Superscript
             $line = preg_replace('/_\{(?!\})([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\}/', "<sub>$1</sub>", $line); // Subscript
             $line = preg_replace('/`(?!`)([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)`/', "<code>$1</code>", $line); // Code
-            $line = preg_replace('/!\[(.*?)\]\(([^\)]+)\)(?:&lt;([0-9]{1,2}|100)&gt;)?/', "<img src=\"$2\" alt=\"$1\"" . (empty("$3") ? "" : " style=\"width: $3em\"") . ">", $line); // Image
+            $line = preg_replace('/!\[(.*?)\]\((.+?)\)(?:&lt;([0-9]{1,2}|100)&gt;)?/', "<img src=\"$2\" alt=\"$1\"" . (empty("$3") ? "" : " style=\"width: $3em\"") . ">", $line); // Image
             $line = preg_replace('/&lt;((?:' . implode("|", $this->allowedLinks) . ').+?)&gt;/', "<a href=\"$1\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with indication
-            $line = preg_replace('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^\)]+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with text
+            $line = preg_replace('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ').+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with text
+            $line = preg_replace_callback('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\((.+?)\)/', function ($match)
+            {
+                if (isset($this->linkreference[$match[3]]))
+                {
+                    return "<a href=\"" . $this->linkreference[$match[3]] . "\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">" . $match[1] . "</a>";
+                }
+                else
+                {
+                    return $match[0];
+                }
+            }, $line); // Link with reference
             if ($this->autoURL)
             {
-                $line = preg_replace('/(?<!<a href="|<img src=")(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)(?!\))/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $line); // auto URL
+                $line = preg_replace('/(?<!<a href="|<img src=")(?:' . implode("|", $this->allowedLinks) . ')\S+/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $line); // auto URL
             }
 
-            $line = preg_replace("/\\\\(&.+?;)/", $this->decodeCharacters("$1"), $line); // Restore escaped characters
+            $line = preg_replace_callback('/\\\\(&.+?;)/', function ($match)
+            {
+                return $this->decodeCharacters($match[1]);
+            }, $line); // Restore escaped characters
 
             $returnstr .= $this->prepends[$key] . $line . $this->appends[$key];
         }
@@ -167,7 +184,7 @@ class IMP
         {
             $this->orderedList($until);
         }
-        else if (preg_match('/^ *- +[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *(?:-|\+|\*) +[^ ]/', $this->lines[$this->index]))
         {
             $this->unorderedList($until);
         }
@@ -283,11 +300,11 @@ class IMP
     {
         $this->prepends[$this->index] .= "<ul>";
 
-        for (; $this->index <= $until && preg_match('/^ *- /', $this->lines[$this->index]); $this->index++)
+        for (; $this->index <= $until && preg_match('/^ *(?:-|\+|\*) /', $this->lines[$this->index]); $this->index++)
         {
             // List item opens
             $this->prepends[$this->index] .= "<li>";
-            $this->lines[$this->index] = preg_replace('/^ *- +/', "", $this->lines[$this->index], 1);
+            $this->lines[$this->index] = preg_replace('/^ *(?:-|\+|\*) +/', "", $this->lines[$this->index], 1);
 
             // Check if list item contains other subelements
             for ($i = $this->index + 1; $i <= $until && preg_match('/^ {' . (isset($indent) ? strlen($indent) : '1') . ',}/', $this->lines[$i], $match); $i++)
@@ -301,7 +318,7 @@ class IMP
             $i--;
 
             // List item closes
-            if ($i + 1 > $until || !preg_match('/^ *- /', $this->lines[$i + 1]))
+            if ($i + 1 > $until || !preg_match('/^ *(?:-|\+|\*) /', $this->lines[$i + 1]))
             {
                 $this->appends[$i] = "</ul>" . $this->appends[$i];
             }
@@ -347,12 +364,15 @@ class IMP
 
     public function line(string $str): string
     {
-        $str = htmlspecialchars($str, ENT_QUOTES);
+        $str = htmlspecialchars($str);
 
-        $str = preg_replace("/\r|\n/", "", $str); // Remove all line breaks
-        $str = preg_replace("/\t/", "    ", $str); // Unify spacers
+        $str = preg_replace('/\r|\n/', "", $str); // Remove all line breaks
+        $str = preg_replace('/\t/', "    ", $str); // Unify spacers
 
-        $str = preg_replace("/\\\\(&.+?;)/", $this->encodeCharacters("$1"), $str); // Escape characters
+        $str = preg_replace_callback('/\\\\(.)/', function ($match)
+        {
+            return '\\' . $this->encodeCharacters($match[1]);
+        }, $str); // Escape characters
 
         $str = preg_replace('/\*\*\*(?!\*)(.+?)\*\*\*/', "<strong><em>$1</em></strong>", $str); // Bold and italic
         $str = preg_replace('/\*\*(?!\*)(.*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\*\*/', "<strong>$1</strong>", $str); // Bold
@@ -370,7 +390,10 @@ class IMP
             $str = preg_replace('/(?<!<a href=")(?>(?:' . implode("|", $this->allowedLinks) . ')[^\s<>]+)(?!\))/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
         }
 
-        $str = preg_replace("/\\\\(&.+?;)/", $this->decodeCharacters("$1"), $str); // Restore escaped characters
+        $str = preg_replace_callback('/\\\\(&.+?;)/', function ($match)
+        {
+            return $this->decodeCharacters($match[1]);
+        }, $str); // Restore escaped characters
 
         return $str;
     }
