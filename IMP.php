@@ -37,16 +37,52 @@ class IMP
 
     private function encodeCharacters(string $str): string
     {
-        $characters = array('\\', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|', '&');
-        $entities = array('&#92;', '&#42;', '&#95;', '&#123;', '&#125;', '&#91;', '&#93;', '&#60;', '&#62;', '&#40;', '&#41;', '&#35;', '&#43;', '&#45;', '&#46;', '&#33;', '&#124;', '&#x26;');
-        return str_replace($characters, $entities, $str);
+        $translation_table = array(
+            '\\' => '&#92;',
+            '*' => '&#42;',
+            '_' => '&#95;',
+            '{' => '&#123;',
+            '}' => '&#125;',
+            '[' => '&#91;',
+            ']' => '&#93;',
+            '<' => '&#60;',
+            '>' => '&#62;',
+            '(' => '&#40;',
+            ')' => '&#41;',
+            '#' => '&#35;',
+            '+' => '&#43;',
+            '-' => '&#45;',
+            '.' => '&#46;',
+            '!' => '&#33;',
+            '|' => '&#124;',
+            '&' => '&#x26;'
+        );
+        return strtr($str, $translation_table);
     }
 
     private function decodeCharacters(string $str): string
     {
-        $characters = array('\\', '*', '_', '{', '}', '[', ']', '<', '>', '(', ')', '#', '+', '-', '.', '!', '|', '&');
-        $entities = array('&#92;', '&#42;', '&#95;', '&#123;', '&#125;', '&#91;', '&#93;', '&#60;', '&#62;', '&#40;', '&#41;', '&#35;', '&#43;', '&#45;', '&#46;', '&#33;', '&#124;', '&#x26;');
-        return str_replace($entities, $characters, $str);
+        $translation_table = array(
+            '&#92;' => '\\',
+            '&#42;' => '*',
+            '&#95;' => '_',
+            '&#123;' => '{',
+            '&#125;' => '}',
+            '&#91;' => '[',
+            '&#93;' => ']',
+            '&#60;' => '<',
+            '&#62;' => '>',
+            '&#40;' => '(',
+            '&#41;' => ')',
+            '&#35;' => '#',
+            '&#43;' => '+',
+            '&#45;' => '-',
+            '&#46;' => '.',
+            '&#33;' => '!',
+            '&#124;' => '|',
+            '&#x26;' => '&'
+        );
+        return strtr($str, $translation_table);
     }
 
     ## Multiline Parser ##
@@ -88,10 +124,21 @@ class IMP
             $line = preg_replace('/\^\{(?!\})([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\}/', "<sup>$1</sup>", $line); // Superscript
             $line = preg_replace('/_\{(?!\})([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\}/', "<sub>$1</sub>", $line); // Subscript
             $line = preg_replace('/`(?!`)([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)`/', "<code>$1</code>", $line); // Code
-            $line = preg_replace('/!\[(.*?)\]\((.+?)\)(?:&lt;([0-9]{1,2}|100)&gt;)?/', "<img src=\"$2\" alt=\"$1\"" . (empty("$3") ? "" : " style=\"width: $3em\"") . ">", $line); // Image
-            $line = preg_replace('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ').+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with text
-            $line = preg_replace('/&lt;((?:' . implode("|", $this->allowedLinks) . ').+?)&gt;/', "<a href=\"$1\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with indication
-            $line = preg_replace_callback('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\((.+?)\)/', function ($match)
+            $line = preg_replace('/!\[([^<>]*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)\)(?:&lt;([0-9]{1,2}|100)&gt;)?/', "<img src=\"$2\" alt=\"$1\"" . (empty("$3") ? "" : " style=\"width: $3em\"") . ">", $line); // Image
+            $line = preg_replace_callback('/!\[([^<>]*?)\]\(([^<>]+?)\)(?:&lt;([0-9]{1,2}|100)&gt;)?/', function ($match)
+            {
+                if (isset($this->linkreference[$match[2]]))
+                {
+                    return "<img src=\"" . $this->linkreference[$match[2]] . "\" alt=\"" . $this->linkreference[$match[1]] . "\"" . (empty($this->linkreference[$match[3]]) ? "" : " style=\"width: " . $this->linkreference[$match[3]] . "em\"") . ">";
+                }
+                else
+                {
+                    return $match[0];
+                }
+            }, $line); // Image with reference
+            $line = preg_replace('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with text
+            $line = preg_replace('/&lt;((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)&gt;/', "<a href=\"$1\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $line); // Link with indication
+            $line = preg_replace_callback('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(([^<>]+?)\)/', function ($match)
             {
                 if (isset($this->linkreference[$match[3]]))
                 {
@@ -176,10 +223,6 @@ class IMP
         {
             $this->blockquote($until);
         }
-        else if (preg_match('/^(?: *```| {4,}[^ ])/', $this->lines[$this->index]))
-        {
-            $this->preformattedBlock($until);
-        }
         else if (preg_match('/^ *[0-9]+\. +[^ ]/', $this->lines[$this->index]))
         {
             $this->orderedList($until);
@@ -187,6 +230,14 @@ class IMP
         else if (preg_match('/^ *(?:-|\+|\*) +[^ ]/', $this->lines[$this->index]))
         {
             $this->unorderedList($until);
+        }
+        else if (preg_match('/^ *```/', $this->lines[$this->index]))
+        {
+            $this->preformattedBlock_explicit($until);
+        }
+        else if (preg_match('/^ {4}/', $this->lines[$this->index]))
+        {
+            $this->preformattedBlock($until);
         }
         else if (preg_match('/^ *\[.+?\]: *[^ ]/', $this->lines[$this->index]))
         {
@@ -209,7 +260,7 @@ class IMP
 
         for ($i = $this->index; $i <= $until && preg_match('/^ *&gt;/', $this->lines[$i]); $i++)
         {
-            $this->lines[$i] = preg_replace('/^ *&gt; +/', "", $this->lines[$i], 1);
+            $this->lines[$i] = preg_replace('/^ *&gt; */', "", $this->lines[$i], 1);
         }
         $i--;
 
@@ -229,30 +280,32 @@ class IMP
         // Preformatted block opens
         $this->prepends[$this->index] .= "<pre><code>";
 
-        if (preg_match('/^ *```/', $this->lines[$this->index]))
+        for (; $this->index < $until && preg_match('/^ {4})/', $this->lines[$this->index + 1]); $this->index++)
         {
-            $this->lines[$this->index] = ""; // Delete starting identifier
-            $this->index++;
-        }
-
-        for (; $this->index <= $until && !preg_match('/^(?: *```| {0,3}[^ ]| {4,}$)/', $this->lines[$this->index]); $this->index++)
-        {
-            if (preg_match('/^( {4,})[^ ]/', $this->lines[$this->index], $match))
-            {
-                if (!isset($indent))
-                {
-                    $indent = $match[1];
-                }
-                $this->lines[$this->index] = preg_replace('/' . $indent . '/', "", $this->lines[$this->index], 1);
-            }
+            $this->lines[$this->index] = preg_replace('/^ {4}/', "", $this->lines[$this->index], 1);
             $this->appends[$this->index] = "\n";
         }
-        $this->index--;
+        $this->lines[$this->index] = preg_replace('/^ {4}/', "", $this->lines[$this->index], 1);
 
-        if (preg_match('/^ *```/', $this->lines[$this->index]))
+        // Preformatted block closes
+        $this->appends[$this->index] = "</code></pre>" . $this->appends[$this->index];
+    }
+
+    private function preformattedBlock_explicit(int $until): void
+    {
+        // Preformatted block opens
+        $this->prepends[$this->index] .= "<pre><code>";
+
+        $this->lines[$this->index] = ""; // Delete starting identifier
+        $this->index++;
+
+        for (; $this->index < $until && !preg_match('/^ *```/', $this->lines[$this->index + 1]); $this->index++)
         {
-            $this->lines[$this->index] = ""; // Delete ending identifier
+            $this->appends[$this->index] = "\n";
         }
+
+        $this->index++;
+        $this->lines[$this->index] = ""; // Delete ending identifier
 
         // Preformatted block closes
         $this->appends[$this->index] = "</code></pre>" . $this->appends[$this->index];
@@ -269,13 +322,18 @@ class IMP
             $this->lines[$this->index] = preg_replace('/^ *[0-9]+\. +/', "", $this->lines[$this->index], 1);
 
             // Check if list item contains other subelements
-            for ($i = $this->index + 1; $i <= $until && preg_match('/^ {' . (isset($indent) ? strlen($indent) : '1') . ',}/', $this->lines[$i], $match); $i++)
+            $indent = 0;
+            for ($i = $this->index + 1; $i <= $until && preg_match('/^ {' . ($indent ? $indent : 1) . ',}|^$/', $this->lines[$i], $match); $i++)
             {
-                if (!isset($indent))
+                if (!$indent)
                 {
-                    $indent = $match[0];
+                    $indent = strlen($match[0]);
+                    if ($indent > 4)
+                    {
+                        $indent = 4;
+                    }
                 }
-                $this->lines[$i] = preg_replace('/^ {' . (isset($indent) ? strlen($indent) : '1') . '}/', "", $this->lines[$i], 1);
+                $this->lines[$i] = preg_replace('/^ {' . $indent . '}/', "", $this->lines[$i], 1);
             }
             $i--;
 
@@ -307,13 +365,18 @@ class IMP
             $this->lines[$this->index] = preg_replace('/^ *(?:-|\+|\*) +/', "", $this->lines[$this->index], 1);
 
             // Check if list item contains other subelements
-            for ($i = $this->index + 1; $i <= $until && preg_match('/^ {' . (isset($indent) ? strlen($indent) : '1') . ',}/', $this->lines[$i], $match); $i++)
+            $indent = 0;
+            for ($i = $this->index + 1; $i <= $until && preg_match('/^ {' . ($indent ? $indent : 1) . ',}|^$/', $this->lines[$i], $match); $i++)
             {
-                if (!isset($indent))
+                if (!$indent)
                 {
-                    $indent = $match[0];
+                    $indent = strlen($match[0]);
+                    if ($indent > 4)
+                    {
+                        $indent = 4;
+                    }
                 }
-                $this->lines[$i] = preg_replace('/^ {' . (isset($indent) ? strlen($indent) : '1') . '}/', "", $this->lines[$i], 1);
+                $this->lines[$i] = preg_replace('/^ {' . $indent . '}/', "", $this->lines[$i], 1);
             }
             $i--;
 
@@ -383,8 +446,8 @@ class IMP
         $str = preg_replace('/\^\{(?!\})([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\}/', "<sup>$1</sup>", $str); // Superscript
         $str = preg_replace('/_\{(?!\})([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\}/', "<sub>$1</sub>", $str); // Subscript
         $str = preg_replace('/`(?!`)([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)`/', "<code>$1</code>", $str); // Code
-        $str = preg_replace('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ').+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link with text
-        $str = preg_replace('/&lt;((?:' . implode("|", $this->allowedLinks) . ').+?)&gt;/', "<a href=\"$1\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link with indication
+        $str = preg_replace('/\[(?!\])([^<>]*?(?:<(.+?)>[^<>]*?<\/\2>[^<>]*?)*?)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)\)/', "<a href=\"$3\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link with text
+        $str = preg_replace('/&lt;((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)&gt;/', "<a href=\"$1\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$1</a>", $str); // Link with indication
         if ($this->autoURL)
         {
             $str = preg_replace('/(?<!<a href="|<img src=")(?:' . implode("|", $this->allowedLinks) . ')[-a-zA-Z0-9@:%._\\\\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\\\\+.~#?&\/=]*)(?! *<\/a>)/', "<a href=\"$0\"" . ($this->linkNewTab ? " target=\"_blank\"" : "") . ">$0</a>", $str); // auto URL
