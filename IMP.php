@@ -69,15 +69,15 @@ class IMP
             $line = preg_replace('/(?<!\\\\)\^\{(?!\})([^<>]*?(?:<([^<>]+?)>[^<>]*?<\/\2>[^<>]*?)*?)(?<!\\\\)\}/', "<sup>$1</sup>", $line); // Superscript
             $line = preg_replace('/(?<!\\\\)_\{(?!\})([^<>]*?(?:<([^<>]+?)>[^<>]*?<\/\2>[^<>]*?)*?)(?<!\\\\)\}/', "<sub>$1</sub>", $line); // Subscript
             $line = preg_replace('/(?<!\\\\)`(?!`)([^<>]*?(?:<([^<>]+?)>[^<>]*?<\/\2>[^<>]*?)*?)(?<!\\\\)`/', "<code>$1</code>", $line); // Code
-            $line = preg_replace_callback('/(?<!\\\\)!\[([^<>]*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)(?<!\\\\)\)(?:&lt;([0-9]{1,2}|100)(?<!\\\\)&gt;)?/', function ($match)
+            $line = preg_replace_callback('/(?<!\\\\)!\[([^<>]*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)(?<!\\\\)\)(?:&lt;([0-9]+)(?<!\\\\)&gt;)?/', function ($match)
             {
-                return '<img src="'.$match[2].'" alt="'.$match[1].'"'. (empty($match[3]) ? "" : ' style="width: '.$match[3].'em;"') . '>';
+                return '<img src="'.$match[2].'" alt="'.$match[1].'" style="max-width: 100%;'. (empty($match[3]) ? '' : 'width: '.$match[3].'em;') . '">';
             }, $line); // Image
-            $line = preg_replace_callback('/(?<!\\\\)!\[([^<>]*?)(?<!\\\\)\]\(([^<>]+?)(?<!\\\\)\)(?:&lt;([0-9]{1,2}|100)(?<!\\\\)&gt;)?/', function ($match)
+            $line = preg_replace_callback('/(?<!\\\\)!\[([^<>]*?)(?<!\\\\)\]\(([^<>]+?)(?<!\\\\)\)(?:&lt;([0-9]+)(?<!\\\\)&gt;)?/', function ($match)
             {
                 if (isset($this->linkreference[$match[2]]))
                 {
-                    return "<img src=\"" . $this->linkreference[$match[2]] . "\" alt=\"" . $this->linkreference[$match[1]] . "\"" . (empty($this->linkreference[$match[3]]) ? "" : " style=\"width: " . $this->linkreference[$match[3]] . "em\"") . ">";
+                    return '<img src="' . $this->linkreference[$match[2]] . '" alt="' . $match[1] . '" style="max-width: 100%;'. (empty($match[3]) ? '' : 'width: '.$match[3].'em;') . '">';
                 }
                 else
                 {
