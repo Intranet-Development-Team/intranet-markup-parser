@@ -174,7 +174,7 @@ class IMP
             $this->lines[$this->index] = "";
             $this->prepends[$this->index] .= "<hr>";
         }
-        else if (preg_match('/^ *&gt; *[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *&gt;/', $this->lines[$this->index]))
         {
             $this->blockquote($until);
         }
@@ -182,21 +182,21 @@ class IMP
         {
             $this->preformattedBlock_explicit($until);
         }
-        else if (preg_match('/^ {4}/', $this->lines[$this->index]))
-        {
-            $this->preformattedBlock($until);
-        }
-        else if (preg_match('/^ *[0-9]+\. +[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *[0-9]+\. /', $this->lines[$this->index]))
         {
             $this->orderedList($until);
         }
-        else if (preg_match('/^ *(?:-|\+|\*) +[^ ]/', $this->lines[$this->index]))
+        else if (preg_match('/^ *(?:-|\+|\*) /', $this->lines[$this->index]))
         {
             $this->unorderedList($until);
         }
         else if (preg_match('/^ *\[.+?(?<!\\\\)\]: *[^ ]/', $this->lines[$this->index]))
         {
             $this->linkreference();
+        }
+        else if (preg_match('/^ {4}/', $this->lines[$this->index]))
+        {
+            $this->preformattedBlock($until);
         }
         else if (preg_match('/^ *$/', $this->lines[$this->index])) // Remove empty lines
         {
