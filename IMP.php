@@ -71,13 +71,13 @@ class IMP
             $line = preg_replace('/(?<!\\\\)`(?!`)([^<>]*?(?:<([^<>]+?)>[^<>]*?<\/\2>[^<>]*?)*?)(?<!\\\\)`/', "<code>$1</code>", $line); // Code
             $line = preg_replace_callback('/(?<!\\\\)!\[([^<>]*?)(?<!\\\\)\]\(((?:' . implode("|", $this->allowedLinks) . ')[^<>]+?)(?<!\\\\)\)(?:&lt;([0-9]+)(?<!\\\\)&gt;)?/', function ($match)
             {
-                return '<img src="'.$match[2].'" alt="'.$match[1].'" style="max-width: 100%;'. (empty($match[3]) ? '' : 'width: '.$match[3].'em;') . '">';
+                return '<figure class="figure"><img src="' . $match[2] . '" alt="' . $match[1] . '" style="max-width: 100%;width: ' . (empty($match[3]) ? '100%' : $match[3] . 'em') . ';" class="rounded"><figcaption class="figure-caption">' . $match[1] . '</figcaption></figure>';
             }, $line); // Image
             $line = preg_replace_callback('/(?<!\\\\)!\[([^<>]*?)(?<!\\\\)\]\(([^<>]+?)(?<!\\\\)\)(?:&lt;([0-9]+)(?<!\\\\)&gt;)?/', function ($match)
             {
                 if (isset($this->linkreference[$match[2]]))
                 {
-                    return '<img src="' . $this->linkreference[$match[2]] . '" alt="' . $match[1] . '" style="max-width: 100%;'. (empty($match[3]) ? '' : 'width: '.$match[3].'em;') . '">';
+                    return '<figure class="figure"><img src="' . $this->linkreference[$match[2]] . '" alt="' . $match[1] . '" style="max-width: 100%;width: ' . (empty($match[3]) ? '100%' : $match[3] . 'em') . ';" class="rounded"><figcaption class="figure-caption">' . $match[1] . '</figcaption></figure>';
                 }
                 else
                 {
@@ -174,7 +174,7 @@ class IMP
             $this->lines[$this->index] = "";
             $this->prepends[$this->index] .= "<hr>";
         }
-        else if (preg_match('/^ *&gt;/', $this->lines[$this->index]))
+        else if (preg_match('/^ *&gt; *[^ ]/', $this->lines[$this->index]))
         {
             $this->blockquote($until);
         }
@@ -182,21 +182,21 @@ class IMP
         {
             $this->preformattedBlock_explicit($until);
         }
-        else if (preg_match('/^ *[0-9]+\. /', $this->lines[$this->index]))
+        else if (preg_match('/^ {4}/', $this->lines[$this->index]))
+        {
+            $this->preformattedBlock($until);
+        }
+        else if (preg_match('/^ *[0-9]+\. +[^ ]/', $this->lines[$this->index]))
         {
             $this->orderedList($until);
         }
-        else if (preg_match('/^ *(?:-|\+|\*) /', $this->lines[$this->index]))
+        else if (preg_match('/^ *(?:-|\+|\*) +[^ ]/', $this->lines[$this->index]))
         {
             $this->unorderedList($until);
         }
         else if (preg_match('/^ *\[.+?(?<!\\\\)\]: *[^ ]/', $this->lines[$this->index]))
         {
             $this->linkreference();
-        }
-        else if (preg_match('/^ {4}/', $this->lines[$this->index]))
-        {
-            $this->preformattedBlock($until);
         }
         else if (preg_match('/^ *$/', $this->lines[$this->index])) // Remove empty lines
         {
