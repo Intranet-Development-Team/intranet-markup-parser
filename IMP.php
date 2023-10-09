@@ -211,7 +211,7 @@ class IMP
     private function blockquote(int $until): void
     {
         // Blockquote opens
-        $this->prepends[$this->index] .= "<blockquote>";
+        $this->prepends[$this->index] .= '<blockquote class="bg-body-tertiary">';
 
         for ($i = $this->index; $i <= $until && preg_match('/^ *&gt;/', $this->lines[$i]); $i++)
         {
@@ -233,7 +233,7 @@ class IMP
     private function preformattedBlock_explicit(int $until): void
     {
         // Preformatted block opens
-        $this->prepends[$this->index] .= "<pre><code>";
+        $this->prepends[$this->index] .= '<pre class="bg-dark-subtle"><code>';
 
         $this->lines[$this->index] = ""; // Delete starting identifier
 
@@ -256,7 +256,7 @@ class IMP
     private function preformattedBlock(int $until): void
     {
         // Preformatted block opens
-        $this->prepends[$this->index] .= "<pre><code>";
+        $this->prepends[$this->index] .= '<pre class="bg-dark-subtle"><code>';
 
         for (; $this->index < $until && preg_match('/^ {4}/', $this->lines[$this->index + 1]); $this->index++)
         {
