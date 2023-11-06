@@ -169,7 +169,7 @@ class IMP
             $this->prepends[$this->index] .= "<h6>" . $this->prepends[$this->index];
             $this->appends[$this->index] .= "</h6>";
         }
-        else if (preg_match('/^ *(\*{3,}|-{3,}|_{3,}) *$/', $this->lines[$this->index]))
+        else if (preg_match('/^ *(\*{3,}|-{3,}|_{3,}|={3,}) *$/', $this->lines[$this->index]))
         {
             $this->lines[$this->index] = "";
             $this->prepends[$this->index] .= "<hr>";
@@ -360,7 +360,7 @@ class IMP
         // Paragraph opens
         $this->prepends[$this->index] .= "<p>";
 
-        for (; $this->index < $until && !preg_match('/(?:^ *(?:- +[^ ]|[0-9]+\. +[^ ]|```|&gt; *[^ ]|(?:\*{3,}|-{3,}|_{3,}) *$|#+ *[^ ]|\[.+?\]: *[^ ]|$)|^ {4})/', $this->lines[$this->index + 1]); $this->index++)
+        for (; $this->index < $until && !preg_match('/(?:^ *(?:- +[^ ]|[0-9]+\. +[^ ]|```|&gt; *[^ ]|(?:\*{3,}|-{3,}|_{3,}|={3,}) *$|#+ *[^ ]|\[.+?\]: *[^ ]|$)|^ {4})/', $this->lines[$this->index + 1]); $this->index++)
         {
             // Translate new lines: line breaks
             $this->appends[$this->index] = "<br>" . $this->appends[$this->index];
